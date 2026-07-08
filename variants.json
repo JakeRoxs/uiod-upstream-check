@@ -1,0 +1,26 @@
+{
+  "uiod": {
+    "display_name": "UI Overhaul Dynamic",
+    "workshop_id": "1623423360",
+    "upstream_file": "interface/main.gui",
+    "vendor_path": "vendor/uiod/1623423360/interface/main.gui",
+    "patched_path": "patched/uiod-plus-mp-spacebar-pause/interface/main.gui",
+    "remove_pause_clicksound": true
+  },
+  "uiod-et": {
+    "display_name": "UI Overhaul Dynamic - Extended Topbar",
+    "workshop_id": "1780481482",
+    "upstream_file": "interface/main_topbar.gui",
+    "vendor_path": "vendor/uiod-et/1780481482/interface/main_topbar.gui",
+    "patched_path": "patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui",
+    "remove_pause_clicksound": false
+  },
+  "uiod-etfdlc": {
+    "display_name": "UI Overhaul Dynamic - Extended Topbar for DLCs",
+    "workshop_id": "3090328185",
+    "upstream_file": "interface/main_topbar.gui",
+    "vendor_path": "vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui",
+    "patched_path": "patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui",
+    "remove_pause_clicksound": false
+  }
+}

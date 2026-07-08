@@ -1,0 +1,89 @@
+name: Check UIOD upstream
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-gui-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Cache SteamCMD and workshop content
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .steamcmd-cache
+          key: steamcmd-uiod-${{ runner.os }}
+
+      - name: Install SteamCMD dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl lib32gcc-s1 lib32stdc++6
+
+      - name: Install SteamCMD
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd"
+          if [ ! -x "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" ]; then
+            curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+              | tar -xz -C "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd"
+          fi
+
+      - name: Download UI Overhaul Dynamic
+        run: |
+          "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" \
+            +force_install_dir "$GITHUB_WORKSPACE/.steamcmd-cache/content" \
+            +login anonymous \
+            +workshop_download_item 281990 1623423360 validate \
+            +workshop_download_item 281990 1780481482 validate \
+            +workshop_download_item 281990 3090328185 validate \
+            +quit
+
+      - name: Update vendored and patched GUI files
+        run: |
+          python scripts/update_uiod_gui.py \
+            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/interface/main.gui" \
+            --variant uiod \
+            --update
+          python scripts/update_uiod_gui.py \
+            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1780481482/interface/main_topbar.gui" \
+            --variant uiod-et \
+            --update
+          python scripts/update_uiod_gui.py \
+            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/3090328185/interface/main_topbar.gui" \
+            --variant uiod-etfdlc \
+            --update
+
+      - name: Verify generated patched files
+        run: python scripts/update_uiod_gui.py --check-generated --all
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Create update pull request
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
+        with:
+          branch: update-uiod-gui-baselines
+          title: Update UIOD GUI baselines
+          commit-message: Update UIOD GUI baselines
+          body: |
+            One or more UI Overhaul Dynamic workshop files changed.
+
+            This PR updates the vendored upstream GUI files and regenerates the patched GUI files with the spacebar pause patch reapplied.
+          add-paths: |
+            vendor/uiod/1623423360/interface/main.gui
+            vendor/uiod-et/1780481482/interface/main_topbar.gui
+            vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui
+            patched/uiod-plus-mp-spacebar-pause/interface/main.gui
+            patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui
+            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui
+            scripts/update_uiod_gui.py
+            tests/test_update_uiod_gui.py
+            .github/workflows/check-uiod-upstream.yml
