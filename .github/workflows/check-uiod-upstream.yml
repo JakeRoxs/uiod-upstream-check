@@ -28,18 +28,18 @@ jobs:
     steps:
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Cache SteamCMD
         id: cache-steamcmd
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .steamcmd-cache/steamcmd
           key: steamcmd-${{ runner.os }}-v1
 
       - name: Cache workshop content
         id: cache-workshop-content
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .steamcmd-cache/content
           key: steam-workshop-uiod-${{ runner.os }}-${{ github.run_id }}
@@ -141,7 +141,7 @@ jobs:
 
       - name: Create update pull request
         id: create-pull-request
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
           branch: update-uiod-gui-baselines
           title: Update UIOD GUI baselines
