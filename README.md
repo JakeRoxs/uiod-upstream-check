@@ -31,11 +31,11 @@ The GitHub Actions workflow refreshes these files and opens or updates a pull re
 
 Variant metadata lives in `variants.json`.
 
-| Variant       | Workshop ID  | Upstream file               | Generated patch                                                        |
-| ------------- | ------------ | --------------------------- | ---------------------------------------------------------------------- |
-| `uiod`        | `1623423360` | `interface/main.gui`        | `patched/uiod-plus-mp-spacebar-pause/interface/main.gui`               |
-| `uiod-et`     | `1780481482` | `interface/main_topbar.gui` | `patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui`     |
-| `uiod-etfdlc` | `3090328185` | `interface/main_topbar.gui` | `patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui` |
+| Variant       | Upstream Workshop item                                                                        | Published patched mod                                                                              | Upstream file               | Generated patch                                                        |
+| ------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------- |
+| `uiod`        | [UIOD `1623423360`](https://steamcommunity.com/workshop/filedetails/?id=1623423360)           | [UIOD + MP Spacebar Pause `3759229377`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229377) | `interface/main.gui`        | `patched/uiod-plus-mp-spacebar-pause/interface/main.gui`               |
+| `uiod-et`     | [UIOD ET `1780481482`](https://steamcommunity.com/sharedfiles/filedetails/?id=1780481482)     | [UIOD ET + MP Spacebar Pause `3759229978`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229978) | `interface/main_topbar.gui` | `patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui`     |
+| `uiod-etfdlc` | [UIOD ETFDLC `3090328185`](https://steamcommunity.com/sharedfiles/filedetails/?id=3090328185) | [UIOD ETFDLC + MP Spacebar Pause `3759228189`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759228189) | `interface/main_topbar.gui` | `patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui` |
 
 ## Patch Logic
 
