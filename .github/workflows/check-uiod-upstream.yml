@@ -15,20 +15,24 @@ jobs:
 
     steps:
       - name: Check out repository
+        id: checkout
         uses: actions/checkout@v4
 
       - name: Cache SteamCMD and workshop content
+        id: cache-steamcmd
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: .steamcmd-cache
           key: steamcmd-uiod-${{ runner.os }}
 
       - name: Install SteamCMD dependencies
+        id: install-dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl lib32gcc-s1 lib32stdc++6
 
       - name: Install SteamCMD
+        id: install-steamcmd
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd"
           if [ ! -x "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" ]; then
@@ -37,6 +41,7 @@ jobs:
           fi
 
       - name: Download UI Overhaul Dynamic
+        id: download-uiod
         run: |
           "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" \
             +force_install_dir "$GITHUB_WORKSPACE/.steamcmd-cache/content" \
@@ -47,6 +52,7 @@ jobs:
             +quit
 
       - name: Update vendored and patched GUI files
+        id: update-gui-files
         run: |
           python scripts/update_uiod_gui.py \
             "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/interface/main.gui" \
@@ -62,12 +68,15 @@ jobs:
             --update
 
       - name: Verify generated patched files
+        id: verify-generated
         run: python scripts/update_uiod_gui.py --check-generated --all
 
       - name: Run unit tests
+        id: unit-tests
         run: python -m unittest discover -s tests -p "test_*.py"
 
       - name: Create update pull request
+        id: create-pull-request
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
         with:
           branch: update-uiod-gui-baselines
@@ -87,3 +96,81 @@ jobs:
             scripts/update_uiod_gui.py
             tests/test_update_uiod_gui.py
             .github/workflows/check-uiod-upstream.yml
+
+      - name: Summarize action execution
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
+          CACHE_OUTCOME: ${{ steps.cache-steamcmd.outcome }}
+          INSTALL_DEPS_OUTCOME: ${{ steps.install-dependencies.outcome }}
+          INSTALL_STEAMCMD_OUTCOME: ${{ steps.install-steamcmd.outcome }}
+          DOWNLOAD_OUTCOME: ${{ steps.download-uiod.outcome }}
+          UPDATE_OUTCOME: ${{ steps.update-gui-files.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify-generated.outcome }}
+          TEST_OUTCOME: ${{ steps.unit-tests.outcome }}
+          PR_OUTCOME: ${{ steps.create-pull-request.outcome }}
+          PR_OPERATION: ${{ steps.create-pull-request.outputs.pull-request-operation }}
+          PR_NUMBER: ${{ steps.create-pull-request.outputs.pull-request-number }}
+          PR_URL: ${{ steps.create-pull-request.outputs.pull-request-url }}
+          PR_BRANCH: update-uiod-gui-baselines
+        run: |
+          if [ -n "$PR_URL" ]; then
+            pr_result="[$PR_URL]($PR_URL)"
+          elif [ "$PR_OUTCOME" = "success" ]; then
+            pr_result="No PR created because the generated files produced no changes ahead of main."
+          elif [ "$PR_OUTCOME" = "skipped" ]; then
+            pr_result="No PR created because the create-pull-request step was skipped after an earlier issue."
+          else
+            pr_result="No PR created because the create-pull-request step did not complete successfully."
+          fi
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            issues="None."
+          else
+            issues="Review the step status table and logs for the failed or skipped step."
+          fi
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<SUMMARY
+          ## UIOD upstream check
+
+          **Status:** $JOB_STATUS
+
+          ### Inputs
+
+          | Name | Value |
+          | --- | --- |
+          | Trigger | $GITHUB_EVENT_NAME |
+          | Branch | $GITHUB_REF_NAME |
+          | Commit | $GITHUB_SHA |
+          | Steam app ID | 281990 |
+          | Workshop items | 1623423360, 1780481482, 3090328185 |
+          | PR branch | $PR_BRANCH |
+
+          ### Outputs
+
+          | Name | Value |
+          | --- | --- |
+          | Cache result | $CACHE_OUTCOME |
+          | PR operation | ${PR_OPERATION:-none} |
+          | PR number | ${PR_NUMBER:-none} |
+          | PR result | $pr_result |
+
+          ### Step Status
+
+          | Step | Outcome |
+          | --- | --- |
+          | Check out repository | $CHECKOUT_OUTCOME |
+          | Cache SteamCMD and workshop content | $CACHE_OUTCOME |
+          | Install SteamCMD dependencies | $INSTALL_DEPS_OUTCOME |
+          | Install SteamCMD | $INSTALL_STEAMCMD_OUTCOME |
+          | Download UI Overhaul Dynamic | $DOWNLOAD_OUTCOME |
+          | Update vendored and patched GUI files | $UPDATE_OUTCOME |
+          | Verify generated patched files | $VERIFY_OUTCOME |
+          | Run unit tests | $TEST_OUTCOME |
+          | Create update pull request | $PR_OUTCOME |
+
+          ### Issues
+
+          $issues
+          SUMMARY
