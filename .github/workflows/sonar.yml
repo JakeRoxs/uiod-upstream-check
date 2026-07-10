@@ -18,7 +18,15 @@ jobs:
         with:
           fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
 
+      - name: Read badge version
+        id: badge-version
+        run: |
+          version="$(python -c 'import json; print(json.load(open("badges/metadata.json", encoding="utf-8"))["version"])')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        with:
+          args: -Dsonar.projectVersion=${{ steps.badge-version.outputs.version }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
