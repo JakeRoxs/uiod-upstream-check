@@ -1,0 +1,42 @@
+{
+  "metadata_path": "badges/metadata.json",
+  "readme_path": "README.md",
+  "docs_path": "badges/README.md",
+  "docs_heading": "Status Badges",
+  "start_marker": "<!-- status-badges:start -->",
+  "end_marker": "<!-- status-badges:end -->",
+  "badges": [
+    {
+      "id": "version",
+      "label": "Version",
+      "metadata_field": "version",
+      "source": "badges/metadata.json field `version`",
+      "logic": "Shows this repository's internal date/time version in UTC using YYYY.MM.DD.HHMM format.",
+      "color": "blue"
+    },
+    {
+      "id": "uiod_version",
+      "label": "UIOD",
+      "metadata_field": "uiod_version",
+      "source": "badges/metadata.json field `uiod_version`",
+      "logic": "Shows the upstream UI Overhaul Dynamic version from the downloaded `descriptor.mod` `version` field, with Steam `timeupdated` and vendored-file content hash fallbacks.",
+      "color": "purple"
+    },
+    {
+      "id": "stellaris_version",
+      "label": "Stellaris",
+      "metadata_field": "stellaris_version",
+      "source": "badges/metadata.json field `stellaris_version`",
+      "logic": "Shows the Stellaris supported version from the downloaded `descriptor.mod` `supported_version` field.",
+      "color": "informational"
+    },
+    {
+      "id": "sync_status",
+      "label": "Sync",
+      "metadata_field": "sync_status",
+      "source": "badges/metadata.json field `sync_status`",
+      "logic": "Shows whether the vendored upstream files and generated patched files are in sync after the latest generator run.",
+      "color": "brightgreen"
+    }
+  ]
+}

@@ -2,6 +2,9 @@ name: Check UIOD upstream
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   schedule:
     - cron: "0 */12 * * *"
 
@@ -9,32 +12,62 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: check-uiod-upstream
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   update-gui-files:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - name: Cache SteamCMD and workshop content
+      - name: Cache SteamCMD
         id: cache-steamcmd
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: .steamcmd-cache
-          key: steamcmd-uiod-${{ runner.os }}
+          path: .steamcmd-cache/steamcmd
+          key: steamcmd-${{ runner.os }}-v1
+
+      - name: Cache workshop content
+        id: cache-workshop-content
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: .steamcmd-cache/content
+          key: steam-workshop-uiod-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            steam-workshop-uiod-${{ runner.os }}-
+
+      - name: Report cache state
+        id: report-cache-state
+        run: |
+          set -euo pipefail
+          echo "SteamCMD cache hit: ${{ steps.cache-steamcmd.outputs.cache-hit }}"
+          echo "Workshop content cache hit: ${{ steps.cache-workshop-content.outputs.cache-hit }}"
+          ls -la "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd" || true
+          ls -la "$GITHUB_WORKSPACE/.steamcmd-cache/content" || true
 
       - name: Install SteamCMD dependencies
         id: install-dependencies
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y ca-certificates curl lib32gcc-s1 lib32stdc++6
 
       - name: Install SteamCMD
         id: install-steamcmd
         run: |
+          set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd"
+          mkdir -p "$GITHUB_WORKSPACE/.steamcmd-cache/content"
           if [ ! -x "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" ]; then
             curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
               | tar -xz -C "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd"
@@ -43,6 +76,7 @@ jobs:
       - name: Download UI Overhaul Dynamic
         id: download-uiod
         run: |
+          set -euo pipefail
           "$GITHUB_WORKSPACE/.steamcmd-cache/steamcmd/steamcmd.sh" \
             +force_install_dir "$GITHUB_WORKSPACE/.steamcmd-cache/content" \
             +login anonymous \
@@ -54,6 +88,7 @@ jobs:
       - name: Update vendored and patched GUI files
         id: update-gui-files
         run: |
+          set -euo pipefail
           python scripts/update_uiod_gui.py \
             "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/interface/main.gui" \
             --variant uiod \
@@ -75,6 +110,35 @@ jobs:
         id: unit-tests
         run: python -m unittest discover -s tests -p "test_*.py"
 
+      - name: Detect GUI baseline changes
+        id: detect-gui-changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- \
+            vendor/uiod/1623423360/interface/main.gui \
+            vendor/uiod-et/1780481482/interface/main_topbar.gui \
+            vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui \
+            patched/uiod-plus-mp-spacebar-pause/interface/main.gui \
+            patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui \
+            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui; then
+            echo "gui_changed=false" >> "$GITHUB_OUTPUT"
+            echo "No GUI baseline changes detected."
+          else
+            echo "gui_changed=true" >> "$GITHUB_OUTPUT"
+            echo "GUI baseline changes detected."
+          fi
+
+      - name: Refresh status badges
+        id: refresh-status-badges
+        if: steps.detect-gui-changes.outputs.gui_changed == 'true'
+        run: |
+          set -euo pipefail
+          python scripts/update_status_badges.py \
+            --sync-status synced \
+            --uiod-descriptor "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/descriptor.mod" \
+            --workshop-acf "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/appworkshop_281990.acf" \
+            --uiod-file-fallback vendor/uiod/1623423360/interface/main.gui
+
       - name: Create update pull request
         id: create-pull-request
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
@@ -85,7 +149,7 @@ jobs:
           body: |
             One or more UI Overhaul Dynamic workshop files changed.
 
-            This PR updates the vendored upstream GUI files and regenerates the patched GUI files with the spacebar pause patch reapplied.
+            This PR updates the vendored upstream GUI files, regenerates the patched GUI files with the spacebar pause patch reapplied, and refreshes generated status badges for the changed baseline.
           add-paths: |
             vendor/uiod/1623423360/interface/main.gui
             vendor/uiod-et/1780481482/interface/main_topbar.gui
@@ -93,28 +157,36 @@ jobs:
             patched/uiod-plus-mp-spacebar-pause/interface/main.gui
             patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui
             patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui
-            scripts/update_uiod_gui.py
-            tests/test_update_uiod_gui.py
-            .github/workflows/check-uiod-upstream.yml
+            badges/index.json
+            badges/metadata.json
+            README.md
 
       - name: Summarize action execution
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
           CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
-          CACHE_OUTCOME: ${{ steps.cache-steamcmd.outcome }}
+          STEAMCMD_CACHE_OUTCOME: ${{ steps.cache-steamcmd.outcome }}
+          WORKSHOP_CACHE_OUTCOME: ${{ steps.cache-workshop-content.outcome }}
+          STEAMCMD_CACHE_HIT: ${{ steps.cache-steamcmd.outputs.cache-hit }}
+          WORKSHOP_CACHE_HIT: ${{ steps.cache-workshop-content.outputs.cache-hit }}
+          CACHE_STATE_OUTCOME: ${{ steps.report-cache-state.outcome }}
           INSTALL_DEPS_OUTCOME: ${{ steps.install-dependencies.outcome }}
           INSTALL_STEAMCMD_OUTCOME: ${{ steps.install-steamcmd.outcome }}
           DOWNLOAD_OUTCOME: ${{ steps.download-uiod.outcome }}
           UPDATE_OUTCOME: ${{ steps.update-gui-files.outcome }}
           VERIFY_OUTCOME: ${{ steps.verify-generated.outcome }}
           TEST_OUTCOME: ${{ steps.unit-tests.outcome }}
+          DETECT_GUI_CHANGES_OUTCOME: ${{ steps.detect-gui-changes.outcome }}
+          GUI_CHANGED: ${{ steps.detect-gui-changes.outputs.gui_changed }}
+          BADGES_OUTCOME: ${{ steps.refresh-status-badges.outcome }}
           PR_OUTCOME: ${{ steps.create-pull-request.outcome }}
           PR_OPERATION: ${{ steps.create-pull-request.outputs.pull-request-operation }}
           PR_NUMBER: ${{ steps.create-pull-request.outputs.pull-request-number }}
           PR_URL: ${{ steps.create-pull-request.outputs.pull-request-url }}
           PR_BRANCH: update-uiod-gui-baselines
         run: |
+          set -euo pipefail
           if [ -n "$PR_URL" ]; then
             pr_result="[$PR_URL]($PR_URL)"
           elif [ "$PR_OUTCOME" = "success" ]; then
@@ -151,7 +223,11 @@ jobs:
 
           | Name | Value |
           | --- | --- |
-          | Cache result | $CACHE_OUTCOME |
+          | SteamCMD cache outcome | $STEAMCMD_CACHE_OUTCOME |
+          | SteamCMD cache hit | ${STEAMCMD_CACHE_HIT:-false} |
+          | Workshop cache outcome | $WORKSHOP_CACHE_OUTCOME |
+          | Workshop cache hit | ${WORKSHOP_CACHE_HIT:-false} |
+          | GUI baseline changed | ${GUI_CHANGED:-false} |
           | PR operation | ${PR_OPERATION:-none} |
           | PR number | ${PR_NUMBER:-none} |
           | PR result | $pr_result |
@@ -161,13 +237,17 @@ jobs:
           | Step | Outcome |
           | --- | --- |
           | Check out repository | $CHECKOUT_OUTCOME |
-          | Cache SteamCMD and workshop content | $CACHE_OUTCOME |
+          | Cache SteamCMD | $STEAMCMD_CACHE_OUTCOME |
+          | Cache workshop content | $WORKSHOP_CACHE_OUTCOME |
+          | Report cache state | $CACHE_STATE_OUTCOME |
           | Install SteamCMD dependencies | $INSTALL_DEPS_OUTCOME |
           | Install SteamCMD | $INSTALL_STEAMCMD_OUTCOME |
           | Download UI Overhaul Dynamic | $DOWNLOAD_OUTCOME |
           | Update vendored and patched GUI files | $UPDATE_OUTCOME |
           | Verify generated patched files | $VERIFY_OUTCOME |
           | Run unit tests | $TEST_OUTCOME |
+          | Detect GUI baseline changes | $DETECT_GUI_CHANGES_OUTCOME |
+          | Refresh status badges | $BADGES_OUTCOME |
           | Create update pull request | $PR_OUTCOME |
 
           ### Issues
