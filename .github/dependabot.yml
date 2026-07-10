@@ -9,9 +9,6 @@ updates:
       time: "09:00"
       timezone: "America/Denver"
     open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "github-actions"
     commit-message:
       prefix: "deps"
       include: "scope"
