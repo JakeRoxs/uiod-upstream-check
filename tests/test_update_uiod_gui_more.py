@@ -80,7 +80,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
                 {
                     "vendor_path": "vendor.gui",
                     "patched_path": "patched.gui",
-                    "mod_path": "mods/Example Mod",
+                    "mod_path": str(Path(directory) / "mods" / "Example Mod"),
                     "upstream_file": "interface/main.gui",
                 },
                 upstream_path,
