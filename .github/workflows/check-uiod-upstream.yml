@@ -90,17 +90,8 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/update_uiod_gui.py \
-            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/interface/main.gui" \
-            --variant uiod \
-            --update
-          python scripts/update_uiod_gui.py \
-            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/1780481482/interface/main_topbar.gui" \
-            --variant uiod-et \
-            --update
-          python scripts/update_uiod_gui.py \
-            "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990/3090328185/interface/main_topbar.gui" \
-            --variant uiod-etfdlc \
-            --update
+            --update-all \
+            --workshop-root "$GITHUB_WORKSPACE/.steamcmd-cache/content/steamapps/workshop/content/281990"
 
       - name: Verify generated patched files
         id: verify-generated
@@ -114,22 +105,28 @@ jobs:
         id: detect-gui-changes
         run: |
           set -euo pipefail
-          if git diff --quiet -- \
-            vendor/uiod/1623423360/interface/main.gui \
-            vendor/uiod-et/1780481482/interface/main_topbar.gui \
-            vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui \
-            patched/uiod-plus-mp-spacebar-pause/interface/main.gui \
-            patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui \
-            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui \
-            mods/UIOD\ +\ MP\ Spacebar\ Pause/interface/main.gui \
-            mods/UIOD\ ET\ +\ MP\ Spacebar\ Pause/interface/main_topbar.gui \
-            mods/UIOD\ ETFDLC\ +\ MP\ Spacebar\ Pause/interface/main_topbar.gui; then
+          mapfile -t managed_paths < <(python scripts/update_uiod_gui.py --list-managed-paths)
+          if git diff --quiet -- "${managed_paths[@]}"; then
             echo "gui_changed=false" >> "$GITHUB_OUTPUT"
             echo "No GUI baseline changes detected."
           else
             echo "gui_changed=true" >> "$GITHUB_OUTPUT"
             echo "GUI baseline changes detected."
           fi
+
+      - name: List pull request paths
+        id: pull-request-paths
+        run: |
+          set -euo pipefail
+          {
+            echo "paths<<PATHS"
+            python scripts/update_uiod_gui.py --list-managed-paths
+            printf '%s\n' \
+              badges/index.json \
+              badges/metadata.json \
+              README.md
+            echo "PATHS"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Refresh status badges
         id: refresh-status-badges
@@ -153,19 +150,7 @@ jobs:
             One or more UI Overhaul Dynamic workshop files changed.
 
             This PR updates the vendored upstream GUI files, regenerates the patched GUI files and full mod folders with the spacebar pause patch reapplied, and refreshes generated status badges for the changed baseline.
-          add-paths: |
-            vendor/uiod/1623423360/interface/main.gui
-            vendor/uiod-et/1780481482/interface/main_topbar.gui
-            vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui
-            patched/uiod-plus-mp-spacebar-pause/interface/main.gui
-            patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui
-            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui
-            mods/UIOD + MP Spacebar Pause/interface/main.gui
-            mods/UIOD ET + MP Spacebar Pause/interface/main_topbar.gui
-            mods/UIOD ETFDLC + MP Spacebar Pause/interface/main_topbar.gui
-            badges/index.json
-            badges/metadata.json
-            README.md
+          add-paths: ${{ steps.pull-request-paths.outputs.paths }}
 
       - name: Summarize action execution
         if: always()

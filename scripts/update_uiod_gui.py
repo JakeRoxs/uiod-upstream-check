@@ -128,6 +128,43 @@ def mod_gui_path(config: dict) -> Path | None:
     return ROOT / mod_path / config["upstream_file"]
 
 
+def descriptor_value(text: str, key: str) -> str | None:
+    pattern = re.compile(rf'^\s*{re.escape(key)}\s*=\s*"([^"]+)"', re.MULTILINE)
+    match = pattern.search(text)
+    return match.group(1) if match else None
+
+
+def expected_mod_name(config: dict) -> str | None:
+    mod_path = config.get("mod_path")
+    return Path(mod_path).name if mod_path else None
+
+
+def validate_descriptor_metadata(variant: str, config: dict, descriptor_text: str) -> int:
+    expected_name = expected_mod_name(config)
+    if expected_name is None:
+        return 0
+
+    actual_name = descriptor_value(descriptor_text, "name")
+    if actual_name != expected_name:
+        print(
+            f'{variant}: descriptor.mod name mismatch. Expected "{expected_name}", found "{actual_name}".',
+            file=sys.stderr,
+        )
+        return 1
+
+    expected_remote_file_id = config.get("published_workshop_id")
+    if expected_remote_file_id:
+        actual_remote_file_id = descriptor_value(descriptor_text, "remote_file_id")
+        if actual_remote_file_id != expected_remote_file_id:
+            print(
+                f'{variant}: descriptor.mod remote_file_id mismatch. Expected "{expected_remote_file_id}", found "{actual_remote_file_id}".',
+                file=sys.stderr,
+            )
+            return 1
+
+    return 0
+
+
 def check_full_mod_stack(variant: str, config: dict, patched_text: str) -> int:
     target = mod_gui_path(config)
     if target is None:
@@ -149,6 +186,9 @@ def check_full_mod_stack(variant: str, config: dict, patched_text: str) -> int:
         return 1
 
     descriptor_text = descriptor.read_text(encoding="utf-8-sig")
+    if validate_descriptor_metadata(variant, config, descriptor_text) != 0:
+        return 1
+
     picture_match = re.search(r'^\s*picture\s*=\s*"([^"]+)"', descriptor_text, re.MULTILINE)
     if picture_match and not (mod_root / picture_match.group(1)).exists():
         print(f"{variant}: generated mod folder is missing picture file: {picture_match.group(1)}", file=sys.stderr)
@@ -261,6 +301,39 @@ def check_or_update_upstream(
     return 1
 
 
+def workshop_upstream_path(workshop_root: Path, config: dict) -> Path:
+    return workshop_root / config["workshop_id"] / config["upstream_file"]
+
+
+def update_all_variants(manifest: dict, workshop_root: Path) -> int:
+    results = []
+    for variant, config in manifest.items():
+        vendored_path, patched_path = variant_paths(config, None, None)
+        results.append(
+            check_or_update_upstream(
+                variant,
+                config,
+                workshop_upstream_path(workshop_root, config),
+                vendored_path,
+                patched_path,
+                None,
+                True,
+            )
+        )
+    return 0 if all(result == 0 for result in results) else 1
+
+
+def managed_paths(manifest: dict) -> list[Path]:
+    paths = []
+    for config in manifest.values():
+        paths.append(Path(config["vendor_path"]))
+        paths.append(Path(config["patched_path"]))
+        mod_path = config.get("mod_path")
+        if mod_path:
+            paths.append(Path(mod_path) / config["upstream_file"])
+    return paths
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -310,6 +383,21 @@ def parse_args() -> argparse.Namespace:
         help="Update the vendored baseline and regenerate the patched GUI from upstream.",
     )
     parser.add_argument(
+        "--update-all",
+        action="store_true",
+        help="Update every manifest variant from --workshop-root.",
+    )
+    parser.add_argument(
+        "--workshop-root",
+        type=Path,
+        help="Steam workshop content root containing one directory per workshop item ID.",
+    )
+    parser.add_argument(
+        "--list-managed-paths",
+        action="store_true",
+        help="Print manifest-managed GUI output paths, one per line.",
+    )
+    parser.add_argument(
         "--check-generated",
         action="store_true",
         help="Verify patched output equals vendored baseline plus the spacebar pause patch.",
@@ -325,6 +413,20 @@ def main() -> int:
     except (OSError, ValueError) as error:
         print(f"Failed to load manifest: {error}", file=sys.stderr)
         return 1
+
+    if args.list_managed_paths:
+        for path in managed_paths(manifest):
+            print(path.as_posix())
+        return 0
+
+    if args.update_all:
+        if args.workshop_root is None:
+            print("--workshop-root is required with --update-all.", file=sys.stderr)
+            return 1
+        if args.upstream_gui or args.variant or args.all or args.check_generated:
+            print("--update-all cannot be combined with per-variant or check-generated options.", file=sys.stderr)
+            return 1
+        return update_all_variants(manifest, args.workshop_root)
 
     if args.all:
         if not args.check_generated:

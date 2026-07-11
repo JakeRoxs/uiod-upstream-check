@@ -1,4 +1,6 @@
 import argparse
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,6 +15,11 @@ START_STOP_GUI = """buttonType = {
     alwaysTransparent = yes
 }
 """
+
+
+def quiet_call(function, *args, **kwargs):
+    with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+        return function(*args, **kwargs)
 
 
 class TestUpdateUiodGuiCoverageWorkflows(TestCase):
@@ -69,7 +76,7 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
                 encoding="utf-8",
             )
 
-            result = update_uiod_gui.check_generated("uiod", {}, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "uiod", {}, vendored_path, patched_path)
 
             self.assertEqual(0, result)
 
@@ -83,7 +90,7 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
             vendored_path.write_text(START_STOP_GUI, encoding="utf-8")
             patched_path.write_text("stale\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_generated("uiod", {}, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "uiod", {}, vendored_path, patched_path)
 
             self.assertEqual(1, result)
 
@@ -93,14 +100,14 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
             target = mod_root / "interface" / "main.gui"
             target.parent.mkdir(parents=True)
             target.write_text("patched\n", encoding="utf-8")
-            (mod_root / "descriptor.mod").write_text('picture="thumbnail.png"\n', encoding="utf-8")
+            (mod_root / "descriptor.mod").write_text('name="Example"\npicture="thumbnail.png"\n', encoding="utf-8")
             (mod_root / "thumbnail.png").write_text("image", encoding="utf-8")
             config = {
                 "mod_path": str(mod_root),
                 "upstream_file": "interface/main.gui",
             }
 
-            result = update_uiod_gui.check_full_mod_stack("uiod", config, "patched\n")
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "uiod", config, "patched\n")
 
             self.assertEqual(0, result)
 
@@ -115,7 +122,7 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
                 "upstream_file": "interface/main.gui",
             }
 
-            result = update_uiod_gui.check_full_mod_stack("uiod", config, "patched\n")
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "uiod", config, "patched\n")
 
             self.assertEqual(1, result)
 
@@ -133,7 +140,8 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
                 "upstream_file": "interface/main.gui",
             }
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "uiod",
                 config,
                 upstream_path,
@@ -160,7 +168,8 @@ class TestUpdateUiodGuiCoverageWorkflows(TestCase):
             upstream_path.write_text(START_STOP_GUI, encoding="utf-8")
             vendored_path.write_text(START_STOP_GUI.replace("yes", "no"), encoding="utf-8")
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "uiod",
                 {},
                 upstream_path,
@@ -300,6 +309,8 @@ class TestUpdateStatusBadgesCoverageWorkflows(TestCase):
             version, uiod_version, stellaris_version = update_status_badges.derive_versions(args)
 
             self.assertEqual("2026.01.01.0000", version)
+            if uiod_version is None:
+                self.fail("Expected file fallback to produce a UIOD version.")
             self.assertRegex(uiod_version, r"^sha-[0-9a-f]{12}$")
             self.assertIsNone(stellaris_version)
 

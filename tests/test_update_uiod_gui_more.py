@@ -1,10 +1,17 @@
 import json
 import sys
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from unittest import TestCase, main
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
 from scripts import update_uiod_gui
+
+
+def quiet_call(function, *args, **kwargs):
+    with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+        return function(*args, **kwargs)
 
 
 class TestUpdateUiodGuiAdditional(TestCase):
@@ -22,7 +29,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             patched_path = Path(directory) / "patched.gui"
             patched_path.write_text("patched\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_generated("variant", {}, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "variant", {}, vendored_path, patched_path)
 
             self.assertEqual(result, 1)
 
@@ -32,7 +39,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             vendored_path.write_text("vendor\n", encoding="utf-8")
             patched_path = Path(directory) / "patched.gui"
 
-            result = update_uiod_gui.check_generated("variant", {}, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "variant", {}, vendored_path, patched_path)
 
             self.assertEqual(result, 1)
 
@@ -43,7 +50,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             vendored_path.write_text("buttonType = {\n    name = \"start_stop_icons\"\n    alwaysTransparent = yes\n}\n", encoding="utf-8")
             patched_path.write_text("buttonType = {\n    name = \"start_stop_icons\"\n    alwaysTransparent = yes\n    frame = 1\n    shortcut = \"SPACE\"\n}\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_generated("variant", {"remove_pause_clicksound": True}, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "variant", {"remove_pause_clicksound": True}, vendored_path, patched_path)
 
             self.assertEqual(result, 1)
 
@@ -53,7 +60,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
             patched_path = Path(directory) / "patched.gui"
             local_path = Path(directory) / "local.gui"
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {},
                 Path(directory) / "missing.gui",
@@ -75,7 +83,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
                 encoding="utf-8",
             )
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {
                     "vendor_path": "vendor.gui",
@@ -104,7 +113,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
             vendored_path = Path(directory) / "vendor.gui"
             patched_path = Path(directory) / "patched.gui"
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {},
                 upstream_path,
@@ -132,7 +142,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
                 encoding="utf-8",
             )
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {
                     "vendor_path": "vendor.gui",
@@ -162,7 +173,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
             vendored_path.write_text(upstream_path.read_text(encoding="utf-8"), encoding="utf-8")
             local_path.write_text("buttonType = {\n    name = \"start_stop_icons\"\n    alwaysTransparent = yes\n    frame = 2\n}\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {
                     "vendor_path": "vendor.gui",
@@ -220,7 +232,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("patched\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_full_mod_stack("variant", config, "patched\n")
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "variant", config, "patched\n")
             self.assertEqual(result, 1)
 
     def test_check_full_mod_stack_returns_error_when_generated_gui_out_of_sync(self):
@@ -236,7 +248,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             target.write_text("patched-other\n", encoding="utf-8")
             (mod_root / "descriptor.mod").write_text("name=\"Test\"\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_full_mod_stack("variant", config, "patched\n")
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "variant", config, "patched\n")
             self.assertEqual(result, 1)
 
     def test_check_full_mod_stack_returns_error_when_picture_missing(self):
@@ -250,9 +262,45 @@ class TestUpdateUiodGuiAdditional(TestCase):
             target = mod_root / "interface" / "main.gui"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text("patched\n", encoding="utf-8")
-            (mod_root / "descriptor.mod").write_text("picture=\"missing.png\"\n", encoding="utf-8")
+            (mod_root / "descriptor.mod").write_text("name=\"Example Mod\"\npicture=\"missing.png\"\n", encoding="utf-8")
 
-            result = update_uiod_gui.check_full_mod_stack("variant", config, "patched\n")
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "variant", config, "patched\n")
+            self.assertEqual(result, 1)
+
+    def test_check_full_mod_stack_returns_error_when_descriptor_name_mismatches(self):
+        with TemporaryDirectory() as directory:
+            config = {
+                "mod_path": str(Path(directory) / "mods" / "Example Mod"),
+                "upstream_file": "interface/main.gui",
+                "patched_path": "patched.gui",
+            }
+            mod_root = Path(directory) / "mods" / "Example Mod"
+            target = mod_root / "interface" / "main.gui"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("patched\n", encoding="utf-8")
+            (mod_root / "descriptor.mod").write_text("name=\"Wrong Name\"\n", encoding="utf-8")
+
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "variant", config, "patched\n")
+            self.assertEqual(result, 1)
+
+    def test_check_full_mod_stack_returns_error_when_remote_file_id_mismatches(self):
+        with TemporaryDirectory() as directory:
+            config = {
+                "mod_path": str(Path(directory) / "mods" / "Example Mod"),
+                "upstream_file": "interface/main.gui",
+                "patched_path": "patched.gui",
+                "published_workshop_id": "123",
+            }
+            mod_root = Path(directory) / "mods" / "Example Mod"
+            target = mod_root / "interface" / "main.gui"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("patched\n", encoding="utf-8")
+            (mod_root / "descriptor.mod").write_text(
+                "name=\"Example Mod\"\nremote_file_id=\"456\"\n",
+                encoding="utf-8",
+            )
+
+            result = quiet_call(update_uiod_gui.check_full_mod_stack, "variant", config, "patched\n")
             self.assertEqual(result, 1)
 
     def test_check_generated_matches_patch_and_full_mod_stack_returns_zero(self):
@@ -270,7 +318,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             target = mod_path / "interface" / "main.gui"
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(expected, encoding="utf-8")
-            (mod_path / "descriptor.mod").write_text("name=\"Test\"\n", encoding="utf-8")
+            (mod_path / "descriptor.mod").write_text("name=\"Example Mod\"\n", encoding="utf-8")
 
             config = {
                 "vendor_path": "vendor.gui",
@@ -278,8 +326,75 @@ class TestUpdateUiodGuiAdditional(TestCase):
                 "mod_path": str(mod_path),
                 "upstream_file": "interface/main.gui",
             }
-            result = update_uiod_gui.check_generated("variant", config, vendored_path, patched_path)
+            result = quiet_call(update_uiod_gui.check_generated, "variant", config, vendored_path, patched_path)
             self.assertEqual(result, 0)
+
+    def test_update_all_variants_uses_workshop_root_and_manifest_paths(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            workshop_root = root / "workshop"
+            upstream_path = workshop_root / "123" / "interface" / "main.gui"
+            upstream_path.parent.mkdir(parents=True)
+            upstream_path.write_text(
+                "buttonType = {\n    name = \"start_stop_icons\"\n    alwaysTransparent = yes\n}\n",
+                encoding="utf-8",
+            )
+            manifest = {
+                "variant": {
+                    "display_name": "Test",
+                    "workshop_id": "123",
+                    "upstream_file": "interface/main.gui",
+                    "vendor_path": str(root / "vendor.gui"),
+                    "patched_path": str(root / "patched.gui"),
+                    "mod_path": str(root / "mods" / "Example Mod"),
+                }
+            }
+
+            result = quiet_call(update_uiod_gui.update_all_variants, manifest, workshop_root)
+
+            self.assertEqual(result, 0)
+            self.assertTrue((root / "vendor.gui").exists())
+            self.assertTrue((root / "patched.gui").exists())
+            self.assertTrue((root / "mods" / "Example Mod" / "interface" / "main.gui").exists())
+
+    def test_update_all_variants_returns_error_when_upstream_is_missing(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = {
+                "variant": {
+                    "display_name": "Test",
+                    "workshop_id": "123",
+                    "upstream_file": "interface/main.gui",
+                    "vendor_path": str(root / "vendor.gui"),
+                    "patched_path": str(root / "patched.gui"),
+                    "mod_path": str(root / "mods" / "Example Mod"),
+                }
+            }
+
+            result = quiet_call(update_uiod_gui.update_all_variants, manifest, root / "workshop")
+
+            self.assertEqual(result, 1)
+
+    def test_managed_paths_lists_manifest_outputs(self):
+        manifest = {
+            "variant": {
+                "vendor_path": "vendor/main.gui",
+                "patched_path": "patched/main.gui",
+                "mod_path": "mods/Example Mod",
+                "upstream_file": "interface/main.gui",
+            }
+        }
+
+        paths = update_uiod_gui.managed_paths(manifest)
+
+        self.assertEqual(
+            paths,
+            [
+                Path("vendor/main.gui"),
+                Path("patched/main.gui"),
+                Path("mods/Example Mod/interface/main.gui"),
+            ],
+        )
 
     def test_check_or_update_upstream_invalid_patch_returns_error(self):
         with TemporaryDirectory() as directory:
@@ -291,7 +406,8 @@ class TestUpdateUiodGuiAdditional(TestCase):
                 encoding="utf-8",
             )
 
-            result = update_uiod_gui.check_or_update_upstream(
+            result = quiet_call(
+                update_uiod_gui.check_or_update_upstream,
                 "variant",
                 {
                     "vendor_path": "vendor.gui",
@@ -326,7 +442,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             original_argv = sys.argv
             try:
                 sys.argv = [original_argv[0], "--manifest", str(manifest_path), "--all", "--check-generated"]
-                result = update_uiod_gui.main()
+                result = quiet_call(update_uiod_gui.main)
             finally:
                 sys.argv = original_argv
 
@@ -350,7 +466,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
             original_argv = sys.argv
             try:
                 sys.argv = [original_argv[0], "--manifest", str(manifest_path), "--variant", "missing", "--check-generated"]
-                result = update_uiod_gui.main()
+                result = quiet_call(update_uiod_gui.main)
             finally:
                 sys.argv = original_argv
 
@@ -383,7 +499,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
                     "--vendored-main-gui",
                     "vendor.gui",
                 ]
-                result = update_uiod_gui.main()
+                result = quiet_call(update_uiod_gui.main)
             finally:
                 sys.argv = original_argv
 
@@ -393,7 +509,7 @@ class TestUpdateUiodGuiAdditional(TestCase):
         original_argv = sys.argv
         try:
             sys.argv = [original_argv[0]]
-            result = update_uiod_gui.main()
+            result = quiet_call(update_uiod_gui.main)
         finally:
             sys.argv = original_argv
 

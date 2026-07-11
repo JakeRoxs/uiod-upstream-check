@@ -1,11 +1,18 @@
 import json
 import sys
 from argparse import Namespace
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from unittest import TestCase, main
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
 from scripts import update_status_badges
+
+
+def quiet_call(function, *args, **kwargs):
+    with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+        return function(*args, **kwargs)
 
 
 class TestUpdateStatusBadgesAdditional(TestCase):
@@ -246,7 +253,7 @@ class TestUpdateStatusBadgesAdditional(TestCase):
             original_argv = sys.argv
             try:
                 sys.argv = [original_argv[0], "--index", str(index_path), "--version", "1.1", "--check"]
-                result = update_status_badges.main()
+                result = quiet_call(update_status_badges.main)
             finally:
                 sys.argv = original_argv
 
