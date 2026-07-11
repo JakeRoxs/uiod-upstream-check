@@ -1,0 +1,46 @@
+[h1]UIOD + MP Spacebar Pause[/h1]
+
+This mod adds spacebar pause support to [b]UI Overhaul Dynamic[/b].
+
+It is intended for players who use the base UIOD interface and want the familiar spacebar pause behavior in multiplayer without manually patching the main UI file.
+
+[h2]Features[/h2]
+[list]
+[*]Adds spacebar pause support to the UIOD interface.
+[*]Keeps the original UIOD layout and functionality intact.
+[*]Generated from upstream UIOD files so updates can be checked and reapplied cleanly.
+[*]Designed for Stellaris 4.4.* and UIOD 4.4.*.
+[/list]
+
+[h2]Required Mods[/h2]
+[list]
+[*]UI Overhaul Dynamic
+[/list]
+
+[h2]Load Order[/h2]
+Place this mod after [b]UI Overhaul Dynamic[/b].
+
+Recommended order:
+[olist]
+[*]UI Overhaul Dynamic
+[*]UIOD + MP Spacebar Pause
+[/olist]
+
+[h2]Compatibility[/h2]
+This mod patches:
+
+[code]interface/main.gui[/code]
+
+It will conflict with other mods that also replace or heavily modify the same main UI file.
+
+[h2]Source / Update Tracking[/h2]
+The patch generation and upstream sync checks are tracked here:
+
+[url=https://github.com/JakeRoxs/uiod-upstream-check]GitHub - uiod-upstream-check[/url]
+
+[h2]Other Variants[/h2]
+[list]
+[*]UIOD + MP Spacebar Pause
+[*]UIOD Extended Topbar + MP Spacebar Pause
+[*]UIOD Extended Topbar for DLC + MP Spacebar Pause
+[/list]

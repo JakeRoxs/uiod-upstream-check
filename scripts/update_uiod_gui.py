@@ -105,7 +105,7 @@ def load_manifest(path: Path) -> dict:
     if not isinstance(manifest, dict) or not manifest:
         raise ValueError(f"Manifest must contain at least one variant: {path}")
 
-    required_fields = {"display_name", "workshop_id", "upstream_file", "vendor_path", "patched_path"}
+    required_fields = {"display_name", "workshop_id", "upstream_file", "vendor_path", "patched_path", "mod_path"}
     for variant, config in manifest.items():
         missing = required_fields - set(config)
         if missing:
@@ -119,6 +119,51 @@ def variant_paths(config: dict, vendored_override: Path | None, patched_override
     vendored_path = vendored_override or ROOT / config["vendor_path"]
     patched_path = patched_override or ROOT / config["patched_path"]
     return vendored_path, patched_path
+
+
+def mod_gui_path(config: dict) -> Path | None:
+    mod_path = config.get("mod_path")
+    if not mod_path:
+        return None
+    return ROOT / mod_path / config["upstream_file"]
+
+
+def check_full_mod_stack(variant: str, config: dict, patched_text: str) -> int:
+    target = mod_gui_path(config)
+    if target is None:
+        return 0
+
+    mod_root = target.parents[len(Path(config["upstream_file"]).parts) - 1]
+    descriptor = mod_root / "descriptor.mod"
+    if not descriptor.exists():
+        print(f"{variant}: generated mod folder is missing descriptor.mod: {descriptor}", file=sys.stderr)
+        return 1
+    if not target.exists():
+        print(f"{variant}: generated mod GUI not found: {target}", file=sys.stderr)
+        return 1
+
+    actual = normalize_text(target)
+    if actual != patched_text:
+        print(f"{variant}: generated mod GUI is out of sync with patched output.", file=sys.stderr)
+        print(unified_diff(patched_text, actual, config["patched_path"], str(target)), file=sys.stderr)
+        return 1
+
+    descriptor_text = descriptor.read_text(encoding="utf-8-sig")
+    picture_match = re.search(r'^\s*picture\s*=\s*"([^"]+)"', descriptor_text, re.MULTILINE)
+    if picture_match and not (mod_root / picture_match.group(1)).exists():
+        print(f"{variant}: generated mod folder is missing picture file: {picture_match.group(1)}", file=sys.stderr)
+        return 1
+
+    print(f"{variant}: generated mod folder matches patched output.")
+    return 0
+
+
+def write_full_mod_stack(config: dict, patched_text: str) -> Path | None:
+    target = mod_gui_path(config)
+    if target is None:
+        return None
+    write_text(target, patched_text)
+    return target
 
 
 def check_generated(variant: str, config: dict, vendored_path: Path, patched_path: Path) -> int:
@@ -141,7 +186,7 @@ def check_generated(variant: str, config: dict, vendored_path: Path, patched_pat
     actual = normalize_text(patched_path)
     if expected == actual:
         print(f"{variant}: patched GUI matches vendored baseline plus patch.")
-        return 0
+        return check_full_mod_stack(variant, config, actual)
 
     print(f"{variant}: patched GUI is out of date.", file=sys.stderr)
     print(
@@ -187,8 +232,11 @@ def check_or_update_upstream(
     if update:
         write_text(vendored_path, upstream)
         write_text(patched_path, patched)
+        mod_target = write_full_mod_stack(config, patched)
         print(f"{variant}: updated vendored baseline: {vendored_path}")
         print(f"{variant}: regenerated patched GUI: {patched_path}")
+        if mod_target is not None:
+            print(f"{variant}: regenerated full mod GUI: {mod_target}")
         return 0
 
     if upstream != vendored:

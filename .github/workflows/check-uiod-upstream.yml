@@ -120,7 +120,10 @@ jobs:
             vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui \
             patched/uiod-plus-mp-spacebar-pause/interface/main.gui \
             patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui \
-            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui; then
+            patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui \
+            mods/UIOD\ +\ MP\ Spacebar\ Pause/interface/main.gui \
+            mods/UIOD\ ET\ +\ MP\ Spacebar\ Pause/interface/main_topbar.gui \
+            mods/UIOD\ ETFDLC\ +\ MP\ Spacebar\ Pause/interface/main_topbar.gui; then
             echo "gui_changed=false" >> "$GITHUB_OUTPUT"
             echo "No GUI baseline changes detected."
           else
@@ -149,7 +152,7 @@ jobs:
           body: |
             One or more UI Overhaul Dynamic workshop files changed.
 
-            This PR updates the vendored upstream GUI files, regenerates the patched GUI files with the spacebar pause patch reapplied, and refreshes generated status badges for the changed baseline.
+            This PR updates the vendored upstream GUI files, regenerates the patched GUI files and full mod folders with the spacebar pause patch reapplied, and refreshes generated status badges for the changed baseline.
           add-paths: |
             vendor/uiod/1623423360/interface/main.gui
             vendor/uiod-et/1780481482/interface/main_topbar.gui
@@ -157,6 +160,9 @@ jobs:
             patched/uiod-plus-mp-spacebar-pause/interface/main.gui
             patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui
             patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui
+            mods/UIOD + MP Spacebar Pause/interface/main.gui
+            mods/UIOD ET + MP Spacebar Pause/interface/main_topbar.gui
+            mods/UIOD ETFDLC + MP Spacebar Pause/interface/main_topbar.gui
             badges/index.json
             badges/metadata.json
             README.md

@@ -54,6 +54,19 @@ class TestUpdateUiodGui(TestCase):
         with self.assertRaisesRegex(ValueError, "Could not find alwaysTransparent = yes in the start_stop_icons buttonType block"):
             update_uiod_gui.apply_spacebar_pause_patch(upstream)
 
+    def test_writes_full_mod_stack_gui(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = {
+                "mod_path": str(root / "mods" / "Example Mod"),
+                "upstream_file": "interface/main.gui",
+            }
+
+            target = update_uiod_gui.write_full_mod_stack(config, "patched\n")
+
+            self.assertEqual((root / "mods" / "Example Mod" / "interface" / "main.gui"), target)
+            self.assertEqual("patched\n", target.read_text(encoding="utf-8"))
+
 
 class TestUpdateStatusBadges(TestCase):
     def test_formats_timestamp_version_as_utc_date_time(self):

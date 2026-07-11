@@ -1,6 +1,6 @@
 # UIOD Upstream Check
 
-This repository monitors three UI Overhaul Dynamic Steam Workshop mods and regenerates the Multiplayer Spacebar Pause GUI files when upstream changes are detected.
+This repository monitors three UI Overhaul Dynamic Steam Workshop mods and regenerates the Multiplayer Spacebar Pause mod folders when upstream changes are detected.
 
 <!-- status-badges:start -->
 ![Version: 2026.07.10.2112](https://img.shields.io/badge/Version-2026.07.10.2112-blue) ![UIOD: 4.4.*](https://img.shields.io/badge/UIOD-4.4.%2A-purple) ![Stellaris: v4.4.*](https://img.shields.io/badge/Stellaris-v4.4.%2A-informational) ![Sync: synced](https://img.shields.io/badge/Sync-synced-brightgreen)
@@ -8,10 +8,11 @@ This repository monitors three UI Overhaul Dynamic Steam Workshop mods and regen
 
 ## What This Produces
 
-The repository keeps committed copies of both upstream baselines and generated patched files:
+The repository keeps committed copies of upstream baselines, generated patched files, and complete upload-ready mod folders:
 
 - `vendor/...` stores the current upstream GUI files downloaded from Steam Workshop.
 - `patched/...` stores generated GUI files with the Multiplayer Spacebar Pause patch reapplied.
+- `mods/...` stores the complete generated Stellaris mod folders, including descriptors, thumbnails, and patched GUI files.
 - `badges/` stores generated status metadata, badge definitions, and badge documentation.
 
 The GitHub Actions workflow refreshes these files and opens or updates a pull request when the committed outputs differ from the latest upstream state.
@@ -23,6 +24,7 @@ The GitHub Actions workflow refreshes these files and opens or updates a pull re
 | `variants.json` | Metadata for the supported UIOD variants and their generated output paths. |
 | `vendor/` | Vendored upstream GUI files downloaded from Steam Workshop. |
 | `patched/` | Generated patched GUI files. |
+| `mods/` | Complete generated mod folders ready for local deployment or Workshop upload. |
 | `scripts/` | Update, verification, and badge generation scripts. |
 | `badges/` | Badge definitions and generated metadata. |
 | `.github/workflows/` | Scheduled upstream check workflow. |
@@ -31,11 +33,11 @@ The GitHub Actions workflow refreshes these files and opens or updates a pull re
 
 Variant metadata lives in `variants.json`.
 
-| Variant       | Upstream Workshop item                                                                        | Published patched mod                                                                              | Upstream file               | Generated patch                                                        |
-| ------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------- |
-| `uiod`        | [UIOD `1623423360`](https://steamcommunity.com/workshop/filedetails/?id=1623423360)           | [UIOD + MP Spacebar Pause `3759229377`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229377) | `interface/main.gui`        | `patched/uiod-plus-mp-spacebar-pause/interface/main.gui`               |
-| `uiod-et`     | [UIOD ET `1780481482`](https://steamcommunity.com/sharedfiles/filedetails/?id=1780481482)     | [UIOD ET + MP Spacebar Pause `3759229978`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229978) | `interface/main_topbar.gui` | `patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui`     |
-| `uiod-etfdlc` | [UIOD ETFDLC `3090328185`](https://steamcommunity.com/sharedfiles/filedetails/?id=3090328185) | [UIOD ETFDLC + MP Spacebar Pause `3759228189`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759228189) | `interface/main_topbar.gui` | `patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui` |
+| Variant       | Upstream Workshop item                                                                        | Published patched mod                                                                              | Upstream file               | Generated mod folder                         |
+| ------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------- |
+| `uiod`        | [UIOD `1623423360`](https://steamcommunity.com/workshop/filedetails/?id=1623423360)           | [UIOD + MP Spacebar Pause `3759229377`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229377) | `interface/main.gui`        | `mods/UIOD + MP Spacebar Pause`              |
+| `uiod-et`     | [UIOD ET `1780481482`](https://steamcommunity.com/sharedfiles/filedetails/?id=1780481482)     | [UIOD ET + MP Spacebar Pause `3759229978`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759229978) | `interface/main_topbar.gui` | `mods/UIOD ET + MP Spacebar Pause`           |
+| `uiod-etfdlc` | [UIOD ETFDLC `3090328185`](https://steamcommunity.com/sharedfiles/filedetails/?id=3090328185) | [UIOD ETFDLC + MP Spacebar Pause `3759228189`](https://steamcommunity.com/sharedfiles/filedetails/?id=3759228189) | `interface/main_topbar.gui` | `mods/UIOD ETFDLC + MP Spacebar Pause`       |
 
 ## Patch Logic
 
@@ -58,8 +60,8 @@ The workflow:
 
 1. Downloads all three workshop items with SteamCMD.
 2. Updates `vendor/...` with the current upstream GUI files.
-3. Regenerates `patched/...` with the spacebar pause patch reapplied.
-4. Verifies every generated patched file can be recreated from its vendored baseline.
+3. Regenerates `patched/...` and `mods/...` with the spacebar pause patch reapplied.
+4. Verifies every generated patched file and generated mod GUI can be recreated from its vendored baseline.
 5. Refreshes the README badge line and `badges/README.md` from `badges/index.json` and `badges/metadata.json`.
 6. Opens or updates a pull request only when generated files changed.
 
@@ -70,7 +72,7 @@ SteamCMD and downloaded workshop content are cached in `.steamcmd-cache` between
 1. Check generated files with `python scripts/update_uiod_gui.py --check-generated --all`.
 2. If generated files are stale, regenerate the affected variant from its downloaded upstream GUI file.
 3. Refresh badges with `python scripts/update_status_badges.py`.
-4. Review changes under `vendor/`, `patched/`, and `badges/`.
+4. Review changes under `vendor/`, `patched/`, `mods/`, and `badges/`.
 
 ## Failure Modes
 
@@ -85,6 +87,8 @@ Check all generated patched files without Steam:
 ```powershell
 python scripts/update_uiod_gui.py --check-generated --all
 ```
+
+The same check also verifies the complete generated mod folders under `mods/`.
 
 Regenerate one variant from an already downloaded upstream file:
 
@@ -114,4 +118,10 @@ Refresh the UIOD badge from the downloaded mod descriptor version, falling back 
 
 ```powershell
 python scripts/update_status_badges.py --uiod-descriptor ".steamcmd-cache/content/steamapps/workshop/content/281990/1623423360/descriptor.mod" --workshop-acf ".steamcmd-cache/content/steamapps/workshop/appworkshop_281990.acf" --uiod-file-fallback vendor/uiod/1623423360/interface/main.gui
+```
+
+Upload from the generated mod stack in the parent repository:
+
+```powershell
+python ..\scripts\upload_uiod_workshop.py --variant uiod --steam-user <steam-user>
 ```

@@ -2,6 +2,8 @@
   "uiod": {
     "display_name": "UI Overhaul Dynamic",
     "workshop_id": "1623423360",
+    "published_workshop_id": "3759229377",
+    "mod_path": "mods/UIOD + MP Spacebar Pause",
     "upstream_file": "interface/main.gui",
     "vendor_path": "vendor/uiod/1623423360/interface/main.gui",
     "patched_path": "patched/uiod-plus-mp-spacebar-pause/interface/main.gui",
@@ -10,6 +12,8 @@
   "uiod-et": {
     "display_name": "UI Overhaul Dynamic - Extended Topbar",
     "workshop_id": "1780481482",
+    "published_workshop_id": "3759229978",
+    "mod_path": "mods/UIOD ET + MP Spacebar Pause",
     "upstream_file": "interface/main_topbar.gui",
     "vendor_path": "vendor/uiod-et/1780481482/interface/main_topbar.gui",
     "patched_path": "patched/uiod-et-plus-mp-spacebar-pause/interface/main_topbar.gui",
@@ -18,6 +22,8 @@
   "uiod-etfdlc": {
     "display_name": "UI Overhaul Dynamic - Extended Topbar for DLCs",
     "workshop_id": "3090328185",
+    "published_workshop_id": "3759228189",
+    "mod_path": "mods/UIOD ETFDLC + MP Spacebar Pause",
     "upstream_file": "interface/main_topbar.gui",
     "vendor_path": "vendor/uiod-etfdlc/3090328185/interface/main_topbar.gui",
     "patched_path": "patched/uiod-etfdlc-plus-mp-spacebar-pause/interface/main_topbar.gui",
