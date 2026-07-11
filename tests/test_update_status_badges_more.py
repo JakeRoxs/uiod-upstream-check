@@ -10,8 +10,9 @@ from scripts import update_status_badges
 
 class TestUpdateStatusBadgesAdditional(TestCase):
     def test_resolve_repo_path_absolute_path(self):
-        path = Path("C:/absolute/path/file.txt")
-        self.assertEqual(update_status_badges.resolve_repo_path(str(path)), path)
+        with TemporaryDirectory() as directory:
+            path = (Path(directory) / "file.txt").resolve()
+            self.assertEqual(update_status_badges.resolve_repo_path(str(path)), path)
 
     def test_resolve_repo_path_relative_path(self):
         path = Path("relative/file.txt")
