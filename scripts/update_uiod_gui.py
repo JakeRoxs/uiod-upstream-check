@@ -405,54 +405,62 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
-    args = parse_args()
-
+def load_manifest_for_args(args: argparse.Namespace) -> dict | None:
     try:
-        manifest = load_manifest(args.manifest)
+        return load_manifest(args.manifest)
     except (OSError, ValueError) as error:
         print(f"Failed to load manifest: {error}", file=sys.stderr)
+        return None
+
+
+def list_managed_paths(manifest: dict) -> int:
+    for path in managed_paths(manifest):
+        print(path.as_posix())
+    return 0
+
+
+def run_update_all(args: argparse.Namespace, manifest: dict) -> int:
+    if args.workshop_root is None:
+        print("--workshop-root is required with --update-all.", file=sys.stderr)
+        return 1
+    if args.upstream_gui or args.variant or args.all or args.check_generated:
+        print("--update-all cannot be combined with per-variant or check-generated options.", file=sys.stderr)
+        return 1
+    return update_all_variants(manifest, args.workshop_root)
+
+
+def check_all_generated(args: argparse.Namespace, manifest: dict) -> int:
+    if not args.check_generated:
+        print("--all is only supported with --check-generated.", file=sys.stderr)
+        return 1
+    if args.vendored_main_gui or args.patched_main_gui or args.local_main_gui:
+        print("Path overrides are not supported with --all.", file=sys.stderr)
         return 1
 
-    if args.list_managed_paths:
-        for path in managed_paths(manifest):
-            print(path.as_posix())
-        return 0
+    results = []
+    for variant, config in manifest.items():
+        vendored_path, patched_path = variant_paths(config, None, None)
+        results.append(check_generated(variant, config, vendored_path, patched_path))
+    return 0 if all(result == 0 for result in results) else 1
 
-    if args.update_all:
-        if args.workshop_root is None:
-            print("--workshop-root is required with --update-all.", file=sys.stderr)
-            return 1
-        if args.upstream_gui or args.variant or args.all or args.check_generated:
-            print("--update-all cannot be combined with per-variant or check-generated options.", file=sys.stderr)
-            return 1
-        return update_all_variants(manifest, args.workshop_root)
 
-    if args.all:
-        if not args.check_generated:
-            print("--all is only supported with --check-generated.", file=sys.stderr)
-            return 1
-        if args.vendored_main_gui or args.patched_main_gui or args.local_main_gui:
-            print("Path overrides are not supported with --all.", file=sys.stderr)
-            return 1
-
-        results = []
-        for variant, config in manifest.items():
-            vendored_path, patched_path = variant_paths(config, None, None)
-            results.append(check_generated(variant, config, vendored_path, patched_path))
-        return 0 if all(result == 0 for result in results) else 1
-
+def get_selected_variant_config(args: argparse.Namespace, manifest: dict) -> dict | None:
     if not args.variant:
         print("--variant is required unless --all is used.", file=sys.stderr)
-        return 1
+        return None
     if args.variant not in manifest:
         available = ", ".join(sorted(manifest))
         print(f"Unknown variant {args.variant}. Available variants: {available}", file=sys.stderr)
+        return None
+    return manifest[args.variant]
+
+
+def run_selected_variant(args: argparse.Namespace, manifest: dict) -> int:
+    config = get_selected_variant_config(args, manifest)
+    if config is None:
         return 1
 
-    config = manifest[args.variant]
     vendored_path, patched_path = variant_paths(config, args.vendored_main_gui, args.patched_main_gui)
-
     if args.check_generated:
         return check_generated(args.variant, config, vendored_path, patched_path)
 
@@ -469,6 +477,24 @@ def main() -> int:
         args.local_main_gui,
         args.update,
     )
+
+
+def main() -> int:
+    args = parse_args()
+    manifest = load_manifest_for_args(args)
+    if manifest is None:
+        return 1
+
+    if args.list_managed_paths:
+        return list_managed_paths(manifest)
+
+    if args.update_all:
+        return run_update_all(args, manifest)
+
+    if args.all:
+        return check_all_generated(args, manifest)
+
+    return run_selected_variant(args, manifest)
 
 
 if __name__ == "__main__":
